@@ -1,0 +1,32 @@
+<!doctype html>
+<head>
+  <meta charset="utf-8">
+  <title>Melodic Commands</title>
+  <meta name="description" content="sing, humm or whistle your command">
+  <link rel="stylesheet" href="css/style.css">
+</head>
+
+<body>
+    <div id="wrapper">
+        <header>
+            <h1>Melodic Commands</h1>
+        </header>
+        
+        <canvas id="cvsInAudio" width="640" height="120"></canvas> <p></p>
+        <canvas id="cvsInAnalysis" width="640" height="120"></canvas>
+        <p style="color:#cccccc" id="textInput">whistle a melody to enter your command</p>
+        <p style="color:#cccccc" id="textDescription">-</p>
+        <canvas id="cvsInPitch" width="640" height="320"></canvas>
+        <footer>
+            <p>Tobias Gurdan, © 2014</p>
+        </footer>
+    </div>
+
+    <script src="js/processing.js"></script>
+    <script src="js/algorithms.js"></script>
+    <script src="js/sound.js"></script>
+    <script src="js/main.js"></script>
+</body>
+
+</html>
+
