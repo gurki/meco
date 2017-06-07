@@ -26,8 +26,8 @@ window.requestAnimFrame = (function() {
 
 //  analyser node
 var analyser = audioContext.createAnalyser();
-analyser.fftSize = 2048;
-analyser.smoothingTimeConstant = 0.25;
+analyser.fftSize = 4096;
+analyser.smoothingTimeConstant = 0.8;
 
 //  audio variables
 var freqDomain = new Uint8Array(analyser.frequencyBinCount);
@@ -62,13 +62,13 @@ function streamSuccess(stream) {
     audioNode.connect(analyser);
     // audioNode.connect(audioContext.destination);
     processAudio();
-    // findFundamentalFrequency();   
+    // findFundamentalFrequency();
 }
 
 function didLoadAudio() {
     connectNodes();
     processAudio();
-    // findFundamentalFrequency();   
+    // findFundamentalFrequency();
 }
 
 function connectNodes() {
@@ -133,6 +133,7 @@ var baseFreq = 55;
 var lastPeak = Date.now();
 var listening = false;
 var sequence = null;
+var lastf = 0;
 
 var txtInput = document.getElementById('textInput');
 var txtDebug = document.getElementById('textDescription');
@@ -173,33 +174,33 @@ function processAudio() {
         }
     }
 
-    // // activate listening if frequency is recognized
-    // if (peakIndex >= 0) 
-    // {
-    //     var currPeak = getFrequencyFromIndex(peakIndex);
+    // activate listening if frequency is recognized
+    if (peakIndex >= 0)
+    {
+        var currPeak = getFrequencyFromIndex(peakIndex);
 
-    //     if (!listening) 
-    //     {
-    //         listening = true;
-    //         baseFreq = currPeak;
-    //         sequence = new Array();
-    //     }
+        if (!listening)
+        {
+            listening = true;
+            baseFreq = currPeak;
+            sequence = new Array();
+        }
 
-    //     var currNote = getNotesBetweenFrequencies(baseFreq, currPeak);
+        var currNote = getNotesBetweenFrequencies(baseFreq, currPeak);
 
-    //     if (currNote != peak) 
-    //     {
-    //         peak = currNote;
-    //         sequence.push(peak);
-    //         txtInput.innerHTML = '[' + sequence + ']';
+        if (currNote != peak)
+        {
+            peak = currNote;
+            sequence.push(peak);
+            txtInput.innerHTML = '[' + sequence + ']';
 
-    //         var w = cvsInputVisual.width;
-    //         var h = cvsInputVisual.height;
-    //         ctxInputVisual.drawArray(sequence, 0, 0, w, h, 20, 20, true);
-    //     }
+            var w = cvsInputVisual.width;
+            var h = cvsInputVisual.height;
+            ctxInputVisual.drawArray(sequence, 0, 0, w, h, 20, 20, true);
+        }
 
-    //     lastPeak = Date.now();
-    // }    
+        lastPeak = Date.now();
+    }
 
 
     // draw time domain
@@ -223,7 +224,7 @@ function processAudio() {
     }
 
     // stop and binset sequence after half a second of slience
-    if (listening && Date.now() - lastPeak > 500 && maxAmp < 0) {
+    if (listening && Date.now() - lastPeak > 100 && maxAmp < 0) {
         peak = -1;
         lastPeak = Date.now();
         listening = false;
@@ -232,29 +233,35 @@ function processAudio() {
     }
 
     // also register new frequency after short silence
-    // if (listening && Date.now() - lastPeak > 10 && maxAmp < 0 && peak >= 0) {
-    // peak = -2;
-    // lastPeak = Date.now();
-    // }
+    if (listening && Date.now() - lastPeak > 10 && maxAmp < 0 && peak >= 0) {
+        peak = -2;
+        lastPeak = Date.now();
+    }
 
 
     //  compute dominant frequency
-    var res = weightedAutocorrelation(timeDomain, 1000, 1000, audioContext.sampleRate);
-    var fdom = res[0];
-    var confCorr = res[1];
-    var confTime = RMS(timeDomain, 0, 256);
+    if ( maxAmp > 0.5 ) {
+        var res = weightedAutocorrelation(timeDomain, 1000, 1000, audioContext.sampleRate);
+        var fdom = res[0];
+        var confCorr = res[1];
+        var confTime = RMS(timeDomain, 0, 256);
 
-    var conf = confCorr * confTime;
+        var conf = confCorr * confTime;
 
-    // if (confTime >= 0.5) {
-    txtInput.innerHTML = frequencyToNote(fdom);
-    // } else {
-    // txtInput.innerHTML = '-';
-    // }
+        // console.log( conf )
 
-    // txtDebug.innerHTML = [Math.round(100 * confCorr) / 100, Math.round(100 * confTime) / 100];
-    txtDebug.innerHTML = 'comming soon: simon sings';
+        // if ( conf >= 0.3 ) {
+            txtInput.innerHTML = frequencyToNote(fdom);
+        // } else {
+            // txtInput.innerHTML = '-';
+        // }
 
+        // txtDebug.innerHTML = [Math.round(100 * confCorr) / 100, Math.round(100 * confTime) / 100];
+        // txtDebug.innerHTML = 'comming soon: simon sings';
+    }
+    else {
+        lastCorrs = null;
+    }
 
     // schedule next processing call
     requestAnimFrame(processAudio);
@@ -356,6 +363,9 @@ function findFirstPeriodicMaxima(array, windowSize) {
     return maxId;
 }
 
+var lastMaxId = 0;
+var lastCorrs = null;
+
 
 function weightedAutocorrelation(series, shifts, size, srate) {
     if (size + shifts > series.length) {
@@ -398,7 +408,36 @@ function weightedAutocorrelation(series, shifts, size, srate) {
         }
     }
 
+    if ( ! lastCorrs ) {
+
+        lastCorrs = new Array(shifts);
+
+        for ( var shift = 0; shift < shifts; shift+= 1) {
+
+            lastCorrs[shift] = corrs[shift];
+
+        }
+
+    } else {
+
+        var alpha = 0.8;
+
+        for ( var shift = 0; shift < shifts; shift+= 1) {
+
+            corrs[shift] = alpha * lastCorrs[shift] + ( 1 - alpha ) * corrs[shift];
+            lastCorrs[shift] = corrs[shift];
+
+        }
+
+    }
+
     var maxId = findFirstPeriodicMaxima(corrs, 7);
+
+    if ( maxId < 400 )
+        lastMaxId = maxId;
+    else
+        maxId = lastMaxId;
+
     var fdom = srate / maxId;
     var conf = (corrs[maxId] - minCorr) / (maxCorr - minCorr);
 
@@ -496,6 +535,9 @@ function match(array) {
         ],
         [
             [0, 4, 3, 6, 5, 8], 'CUUUUBE'
+        ],
+        [
+            [0,3,2,-5], "panem"
         ]
     ];
 
@@ -503,7 +545,7 @@ function match(array) {
     var bestDistance = Infinity;
 
     for (var i = 0; i < keys.length; i++) {
-        var distance = levenshtein(keys[i][0], array);
+        var distance = levenstein(keys[i][0], array);
 
         if (distance < bestDistance) {
             bestMatchId = i;
@@ -514,10 +556,12 @@ function match(array) {
     var bestMatch = keys[bestMatchId];
 
     if (bestDistance < 2 * bestMatch[0].length) {
-        txtInput.innerHTML = '[' + array + '] -> [' + bestMatch[0] + ']';
+        txtInput.innerHTML = '[' + array + '] → [' + bestMatch[0] + ']';
         txtDebug.innerHTML = bestMatch[1];
     } else {
         txtInput.innerHTML = '[' + array + ']';
         txtDebug.innerHTML = 'undefined. try again :)';
     }
+
+    console.log( txtInput.innerHTML, txtDebug.innerHTML )
 }

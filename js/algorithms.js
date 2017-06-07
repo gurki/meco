@@ -1,5 +1,5 @@
 // s1 = key, s2 = sequence. order important, as key may not be altered
-function levenshtein(s1, s2)
+function levenstein(s1, s2)
 {
     var buffer1 = new Array(s2.length + 1);
     var buffer2 = new Array(s2.length + 1);
@@ -12,9 +12,9 @@ function levenshtein(s1, s2)
 
     var id0 = 0;
 
-    for (var id1 = 0; id1 < s1.length; id1++) 
+    for (var id1 = 0; id1 < s1.length; id1++)
     {
-        for (var id2 = id0; id2 < s2.length; id2++) 
+        for (var id2 = id0; id2 < s2.length; id2++)
         {
             var d = Math.abs(s1[id1] - s2[id2]);
             var b1 = Math.max(buffer1[id2], 0);
@@ -26,12 +26,12 @@ function levenshtein(s1, s2)
                 buffer1[id2 + 1] = (b1n == -1 ? b1 + 1 : Math.min(b1n, b1 + 1));
                 buffer2[id2 + 1] = (b2n == -1 ? b1 : Math.min(b2n, b1));
                 buffer2[id2] = (b2 == -1 ? b1 + 1 : Math.min(b2, b1 + 1));
-            } 
+            }
             else if (d == 1) {
                 buffer1[id2 + 1] = (b1n == -1 ? b1 + 1 : Math.min(b1n, b1 + 1));
                 buffer2[id2 + 1] = (b2n == -1 ? b1 + 1 : Math.min(b2n, b1 + 1));
                 buffer2[id2] = (b2 == -1 ? b1 + 1 : Math.min(b2, b1 + 1));
-            } 
+            }
             else {
                 buffer1[id2 + 1] = (b1n == -1 ? b1 + d : Math.min(b1n, b1 + d));
                 buffer2[id2 + 1] = (b2n == -1 ? b1 + d : Math.min(b2n, b1 + d));
@@ -54,14 +54,14 @@ Array.max = function(array){
     return Math.max.apply(Math, array);
 }
 
- 
+
 Array.min = function(array){
     return Math.min.apply(Math, array);
 }
 
 
 //  canvas extensions
-CanvasRenderingContext2D.prototype.roundRect = function (x, y, w, h, r, inner) 
+CanvasRenderingContext2D.prototype.roundRect = function (x, y, w, h, r, inner)
 {
     if (w < 2 * r) r = w / 2;
     if (h < 2 * r) r = h / 2;
@@ -100,7 +100,7 @@ CanvasRenderingContext2D.prototype.drawArray = function(array, x, y, w, h, width
 
     this.fillStyle = '#cccccc';
 
-    if (outer) 
+    if (outer)
     {
         this.shadowBlur = 10;
         this.shadowColor = 'black';
@@ -112,6 +112,6 @@ CanvasRenderingContext2D.prototype.drawArray = function(array, x, y, w, h, width
         this.fillRect(i * width + offsetX, h - ((array[i] - min) * height + offsetY), width - 1, height - 1);
     }
 
-    this.binstore();
+    this.restore();
     return this;
 }
