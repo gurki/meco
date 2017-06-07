@@ -1,3 +1,12 @@
+// Copyright (c) 2014 Tobias Gurdan
+//
+// Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the "Software"), to deal in the Software without restriction, including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is furnished to do so, subject to the following conditions:
+//
+// The above copyright notice and this permission notice shall be included in all copies or substantial portions of the Software.
+//
+// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+//
+
 //  contexts
 var cvsInputAudio = document.getElementById('cvsInAudio');
 var ctxInputAudio = cvsInputAudio.getContext('2d');
@@ -135,11 +144,30 @@ var listening = false;
 var sequence = null;
 var lastf = 0;
 
+var settings = {
+    minAmplitude : 0.5,
+    recognitionDelay : 100
+}
+
 var txtInput = document.getElementById('textInput');
 var txtDebug = document.getElementById('textDescription');
 
 
+function lowpassFilter( data, order ) {
+
+    for ( var j = 0; j < order; j++ ) {
+
+        for ( var i = 1; i < data.length - 1; i++ ) {
+            data[ i ] = ( data[ i - 1 ] + data[ i + 1 ] ) / 2
+        }
+
+    }
+
+}
+
+
 function processAudio() {
+
     ctxInputAudio.save();
 
     // draw background
@@ -153,6 +181,7 @@ function processAudio() {
 
     // draw frequency domain
     analyser.getByteFrequencyData(freqDomain);
+    lowpassFilter( freqDomain, 2 )
 
     var peakIndex = -1;
     var peakValue = -1;
@@ -168,7 +197,7 @@ function processAudio() {
         ctxInputAudio.fillStyle = 'hsl(' + hue + ', 100%, 50%)';
         ctxInputAudio.fillRect((i - b0) * barWidth, offset, barWidth, height);
 
-        if (percent > 0.6 && value > peakValue) {
+        if (percent > settings.minAmplitude && value > peakValue) {
             peakIndex = i;
             peakValue = value;
         }
@@ -179,7 +208,7 @@ function processAudio() {
     {
         var currPeak = getFrequencyFromIndex(peakIndex);
 
-        if (!listening)
+        if ( ! listening )
         {
             listening = true;
             baseFreq = currPeak;
@@ -188,7 +217,7 @@ function processAudio() {
 
         var currNote = getNotesBetweenFrequencies(baseFreq, currPeak);
 
-        if (currNote != peak)
+        if ( currNote != peak )
         {
             peak = currNote;
             sequence.push(peak);
@@ -205,6 +234,7 @@ function processAudio() {
 
     // draw time domain
     analyser.getByteTimeDomainData(timeDomain);
+    lowpassFilter( timeDomain, 3 )
 
     var maxAmp = -1;
 
@@ -224,13 +254,13 @@ function processAudio() {
     }
 
     // stop and binset sequence after half a second of slience
-    if (listening && Date.now() - lastPeak > 100 && maxAmp < 0) {
+    if (listening && Date.now() - lastPeak > settings.recognitionDelay && maxAmp < 0) {
         peak = -1;
         lastPeak = Date.now();
         listening = false;
 
-        match(sequence);
     }
+    match(sequence);
 
     // also register new frequency after short silence
     if (listening && Date.now() - lastPeak > 10 && maxAmp < 0 && peak >= 0) {
@@ -267,6 +297,7 @@ function processAudio() {
     requestAnimFrame(processAudio);
 
     ctxInputAudio.restore();
+
 }
 
 
@@ -543,6 +574,9 @@ function match(array) {
 
     var bestMatchId = -1;
     var bestDistance = Infinity;
+
+    if ( ! array )
+        return
 
     for (var i = 0; i < keys.length; i++) {
         var distance = levenstein(keys[i][0], array);
